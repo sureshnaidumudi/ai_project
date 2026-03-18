@@ -14,50 +14,37 @@ st.set_page_config(
 
 st.title("🚀 AI Resume Question Answering System")
 
-# Load model once
+# Upload resume
+uploaded_file = st.file_uploader("Upload Resume PDF", type=["pdf"])
+
+# Load AI model
 @st.cache_resource
 def load_ai():
     return load_model()
 
 model = load_ai()
 
-# Session state for vector DB
-if "vector_db" not in st.session_state:
-    st.session_state.vector_db = EndeeVectorStore()
-
-vector_db = st.session_state.vector_db
-
-# Reset button
-if st.button("🔄 Reset"):
-    st.session_state.vector_db = EndeeVectorStore()
-    st.success("Reset successful!")
-
-# Upload resume
-uploaded_file = st.file_uploader("Upload Resume PDF", type=["pdf"])
+# Initialize vector DB
+vector_db = EndeeVectorStore()
 
 if uploaded_file is not None:
 
     st.success("✅ Resume uploaded successfully!")
 
-    # Extract text safely
-    try:
-        resume_text = extract_text(uploaded_file)
-    except Exception:
-        st.error("❌ Error reading PDF")
-        st.stop()
+    # Extract text
+    resume_text = extract_text(uploaded_file)
 
-    # Preview
+    # Show preview
     st.subheader("📄 Resume Preview")
     st.write(resume_text[:1500])
 
-    # Split into chunks
+    # Split resume into chunks
     chunks = split_text(resume_text)
 
-    # Store in vector DB
-    with st.spinner("🔍 Indexing resume..."):
-        vector_db.add_documents(chunks)
+    # Store into vector database
+    vector_db.add_documents(chunks)
 
-    # Skill extraction
+    # Extract skills
     st.subheader("🧠 Extracted Skills")
     skills = extract_skills(resume_text)
 
@@ -68,8 +55,9 @@ if uploaded_file is not None:
 
     st.divider()
 
-    # Question answering
+    # Ask question section
     st.subheader("💬 Ask a Question")
+
     question = st.text_input("Enter your question")
 
     if st.button("Get Answer"):
@@ -77,6 +65,8 @@ if uploaded_file is not None:
         if question.strip() == "":
             st.warning("Please enter a question")
         else:
+
+            # Search relevant chunks
             results = vector_db.search(question)
 
             if not results:
@@ -84,11 +74,13 @@ if uploaded_file is not None:
             else:
                 context = " ".join(results)
 
+                # Generate answer
                 answer = answer_question(model, context, question)
 
                 st.subheader("📌 Answer")
                 st.write(answer)
 
+                # Show retrieved context
                 with st.expander("🔎 Retrieved Resume Context"):
                     for r in results:
                         st.write("-", r)
